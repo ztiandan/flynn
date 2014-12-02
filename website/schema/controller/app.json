@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-04/schema#",
   "id": "https://flynn.io/schema/controller/app#",
   "title": "App",
-  "description": "FIXME",
+  "description": "An app is a namespace for process formations and their dependencies and metadata.",
   "sortIndex": 0,
   "type": "object",
   "examples": [
@@ -17,16 +17,25 @@
       "$ref": "/schema/controller/common#/definitions/id"
     },
     "name": {
-      "description": "name of app",
-      "type": "string"
+      "description": "app name",
+      "type": "string",
+      "maxLength": 100,
+      "minLength": 1,
+      "pattern": "^[a-z\d]+(-[a-z\d]+)*$",
+      "mutable": false
     },
     "protected": {
-      "description": "is the app protected?",
-      "type": "boolean"
+      "description": "if true, app is protected from deletion and scaling to zero",
+      "type": "boolean",
+      "mutable": true
     },
     "meta": {
-      "description": "app meta-data",
-      "type": "object"
+      "description": "client-specified app metadata",
+      "type": "object",
+      "mutable": true,
+      "additionalProperties": {
+        "type": "string"
+      }
     },
     "created_at": {
       "$ref": "/schema/controller/common#/definitions/created_at"

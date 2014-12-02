@@ -5,16 +5,18 @@
   "description": "FIXME",
   "sortIndex": 6,
   "type": "object",
+  "require": ["proto"],
   "properties": {
     "port": {
-      "type": "number"
+      "type": "integer",
     },
     "proto": {
-      "type": "string"
+      "type": "string",
+	  "enum": ["tcp", "udp"]
     },
     "range_end": {
       "description": "FIXME",
-      "type": "number"
+      "type": "integer"
     }
   }
 }

@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-04/schema#",
   "id": "https://flynn.io/schema/controller/key#",
   "title": "Key",
-  "description": "FIXME",
+  "description": "A public SSH key used for client authentication.",
   "sortIndex": 5,
   "type": "object",
   "examples": [
@@ -11,15 +11,18 @@
     "schema/examples/controller/key_list#",
     "schema/examples/controller/key_delete#"
   ],
+  "required": ["key"],
   "properties": {
     "id": {
       "$ref": "/schema/controller/common#/definitions/id"
     },
     "key": {
-      "type": "string"
+      "type": "string",
+      "mutable": false
     },
     "comment": {
-      "type": "string"
+      "type": "string",
+      "mutable": false
     },
     "created_at": {
       "$ref": "/schema/controller/common#/definitions/created_at"

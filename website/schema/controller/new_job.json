@@ -2,12 +2,13 @@
   "$schema": "http://json-schema.org/draft-04/schema#",
   "id": "https://flynn.io/schema/controller/new_job#",
   "title": "New Job",
-  "description": "FIXME",
+  "description": "A new job describes a desired process configuration.",
   "sortIndex": 3,
   "type": "object",
   "examples": [
     "schema/examples/controller/job_run#"
   ],
+  "required": ["release"]
   "properties": {
     "release": {
       "$ref": "/schema/controller/common#/definitions/id"
@@ -20,15 +21,18 @@
     },
     "tty": {
       "description": "initialize a tty session",
-      "type": "boolean"
+      "type": "boolean",
+	  "mutable": false
     },
     "tty_columns": {
       "description": "number of columns in tty",
-      "type": "number"
+      "type": "integer",
+	  "mutable": false
     },
     "tty_lines": {
       "description": "number of lines/rows in tty",
-      "type": "number"
+      "type": "integer",
+	  "mutable": false
     }
   }
 }

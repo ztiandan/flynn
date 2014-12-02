@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-04/schema#",
   "id": "https://flynn.io/schema/controller/formation#",
   "title": "Formation",
-  "description": "FIXME",
+  "description": "A formation is a running release.",
   "sortIndex": 2,
   "type": "object",
   "examples": [
@@ -19,7 +19,12 @@
       "$ref": "/schema/controller/common#/definitions/id"
     },
     "processes": {
-      "type": "object"
+      "description": "count of processes to run for each process type",
+      "type": "object",
+      "additionalProperties": {
+        "type": "integer"
+      },
+      "mutable": true
     },
     "created_at": {
       "$ref": "/schema/controller/common#/definitions/created_at"
