@@ -7,7 +7,6 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
-	"net"
 	"net/http"
 	"os"
 	"time"
@@ -35,17 +34,13 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	log.SetOutput(conf.logOut)
 
-	err = discoverd.Connect(conf.controllerDomain + ":1111")
+	client, err = cc.NewClient("", conf.controllerKey)
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	client, err = cc.NewClient("http://"+conf.controllerDomain, conf.controllerKey)
-	if err != nil {
-		log.Fatal(err)
-	}
-	client.HTTP.Transport = &roundTripRecorder{roundTripper: &http.Transport{}}
+	client.HTTP.Transport = &roundTripRecorder{roundTripper: &http.Transport{Dial: client.Dial}}
 
 	e := &generator{
 		conf:        conf,
@@ -53,7 +48,7 @@ func main() {
 		resourceIds: make(map[string]string),
 	}
 
-	providerLog := log.New(os.Stdout, "provider: ", 1)
+	providerLog := log.New(conf.logOut, "provider: ", 1)
 	go e.listenAndServe(providerLog)
 
 	examples := []example{
@@ -361,7 +356,7 @@ func (e *generator) createProvider() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = discoverd.Register(provider.Name, net.JoinHostPort(e.conf.ourAddr, e.conf.ourPort))
+	err = discoverd.Register(provider.Name, ":"+e.conf.ourPort)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -377,8 +372,10 @@ func (e *generator) listProviders() {
 }
 
 func (e *generator) createProviderResource() {
+	resourceConfig := json.RawMessage(`{}`)
 	resourceReq := &ct.ResourceReq{
 		ProviderID: e.resourceIds["provider"],
+		Config:     &resourceConfig,
 	}
 	resource, err := e.client.ProvisionResource(resourceReq)
 	if err != nil {
