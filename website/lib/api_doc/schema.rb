@@ -29,6 +29,9 @@ module APIDoc
       schema = BaseSchema.parse_schema(data)
       schemas[schema.id] = schema
       schema
+    rescue => e
+      puts "Error loading #{path}"
+      raise e
     end
 
     def self.find(id)
