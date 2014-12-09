@@ -21,7 +21,7 @@
       "type": "string",
       "maxLength": 100,
       "minLength": 1,
-      "pattern": "^[a-z\d]+(-[a-z\d]+)*$",
+      "pattern": "^[a-z\\d]+(-[a-z\\d]+)*$",
       "mutable": false
     },
     "protected": {

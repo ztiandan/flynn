@@ -8,7 +8,7 @@
   "require": ["proto"],
   "properties": {
     "port": {
-      "type": "integer",
+      "type": "integer"
     },
     "proto": {
       "type": "string",

@@ -8,7 +8,7 @@
   "examples": [
     "schema/examples/controller/job_run#"
   ],
-  "required": ["release"]
+  "required": ["release"],
   "properties": {
     "release": {
       "$ref": "/schema/controller/common#/definitions/id"
