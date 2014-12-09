@@ -59,6 +59,11 @@ module APIDoc
 
       type << attrs['type']
 
+      if attrs['pattern']
+        type << 'matching'
+        type << el('code', attrs['pattern'])
+      end
+
       if attrs['type'] == 'array' && attrs['items']
         type << 'of'
         if attrs['items']['format']
