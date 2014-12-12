@@ -33,7 +33,7 @@ func (c *hostClient) Attach(req *host.AttachReq, wait bool) (AttachClient, error
 	if err != nil {
 		return nil, err
 	}
-	conn, err := c.dial("tcp", c.addr)
+	conn, err := c.dial("tcp", c.c.URL)
 	if err != nil {
 		return nil, err
 	}
