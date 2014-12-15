@@ -50,16 +50,14 @@ func (s *Cluster) AddJobs(req map[string][]*host.Job) (map[string]host.Host, err
 
 // Host Service methods
 
-func (s *Cluster) RegisterHost(hostID *string, h *host.Host, ch chan *host.Job, done chan bool) error {
-	*hostID = h.ID
-	id := *hostID
-	if id == "" {
+func (s *Cluster) RegisterHost(h *host.Host, ch chan *host.Job, done chan bool) error {
+	if h.ID == "" {
 		return errors.New("sampi: host id must not be blank")
 	}
 
 	s.state.Begin()
 
-	if s.state.HostExists(id) {
+	if s.state.HostExists(h.ID) {
 		s.state.Rollback()
 		return errors.New("sampi: host exists")
 	}
@@ -67,7 +65,7 @@ func (s *Cluster) RegisterHost(hostID *string, h *host.Host, ch chan *host.Job, 
 	jobs := make(chan *host.Job)
 	s.state.AddHost(h, jobs)
 	s.state.Commit()
-	go s.state.sendEvent(id, "add")
+	go s.state.sendEvent(h.ID, "add")
 
 	var err error
 	for job := range jobs {
@@ -75,9 +73,9 @@ func (s *Cluster) RegisterHost(hostID *string, h *host.Host, ch chan *host.Job, 
 	}
 
 	s.state.Begin()
-	s.state.RemoveHost(id)
+	s.state.RemoveHost(h.ID)
 	s.state.Commit()
-	go s.state.sendEvent(id, "remove")
+	go s.state.sendEvent(h.ID, "remove")
 	if err == io.EOF {
 		err = nil
 	}
@@ -120,29 +118,23 @@ func listHosts(c *Cluster, w http.ResponseWriter, r *http.Request, _ httprouter.
 }
 
 func registerHost(c *Cluster, w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	var err error
-	var data []byte
-	var hostID string
-
 	rh := httphelper.NewReponseHelper(w)
-	//hID := ps.ByName("id")
-	h := &host.Host{}
 
-	_, err = r.Body.Read(data)
+	data, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		rh.Error(err)
 		return
 	}
-	err = json.Unmarshal(data, &h)
-	if err != nil {
+
+	h := &host.Host{}
+	if err = json.Unmarshal(data, &h); err != nil {
 		rh.Error(err)
 		return
 	}
 
 	ch := make(chan *host.Job)
 	done := make(chan bool)
-	err = c.RegisterHost(&hostID, h, ch, done)
-	if err != nil {
+	if err = c.RegisterHost(h, ch, done); err != nil {
 		rh.Error(err)
 		return
 	}
