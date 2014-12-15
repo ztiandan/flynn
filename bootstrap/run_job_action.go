@@ -80,7 +80,7 @@ func startJob(s *State, hostID string, job *host.Job) (*Job, error) {
 		jobStatus <- fmt.Errorf("bootstrap: host job stream disconnected unexpectedly: %q", stream.Err())
 	}()
 
-	_, err = cc.AddJobs(&host.AddJobsReq{HostJobs: map[string][]*host.Job{hostID: {job}}})
+	_, err = cc.AddJobs(map[string][]*host.Job{hostID: {job}})
 	if err != nil {
 		return nil, err
 	}

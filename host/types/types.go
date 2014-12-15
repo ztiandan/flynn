@@ -98,16 +98,6 @@ type Host struct {
 	Metadata map[string]string
 }
 
-type AddJobsReq struct {
-	// map of host id -> new jobs
-	HostJobs map[string][]*Job
-}
-
-type AddJobsRes struct {
-	// The state of the cluster after the operation
-	State map[string]Host
-}
-
 type Event struct {
 	Event string
 	JobID string

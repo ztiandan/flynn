@@ -106,8 +106,7 @@ func getJob(h *Host, w http.ResponseWriter, r *http.Request, ps httprouter.Param
 func stopJob(h *Host, w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	rh := httphelper.NewReponseHelper(w)
 	id := ps.ByName("id")
-	err := h.StopJob(id)
-	if err != nil {
+	if err := h.StopJob(id); err != nil {
 		rh.Error(err)
 		return
 	}

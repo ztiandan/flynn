@@ -2,9 +2,11 @@
 package cluster
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"sync"
 	"time"
@@ -14,7 +16,7 @@ import (
 	"github.com/flynn/flynn/pkg/attempt"
 	"github.com/flynn/flynn/pkg/httpclient"
 	"github.com/flynn/flynn/pkg/random"
-	"github.com/flynn/flynn/pkg/rpcplus"
+	"github.com/flynn/flynn/pkg/sse"
 	"github.com/flynn/flynn/pkg/stream"
 )
 
@@ -47,6 +49,9 @@ func NewClientWithDial(dial httpclient.DialFunc, services ServiceSetFunc) (*Clie
 	if err != nil {
 		return nil, err
 	}
+	if dial == nil {
+		dial = net.Dial
+	}
 	client.dial = dial
 	return client, client.start()
 }
@@ -65,41 +70,14 @@ func newClient(services ServiceSetFunc) (*Client, error) {
 	c := &httpclient.Client{
 		ErrPrefix:   "cluster",
 		ErrNotFound: ErrNotFound,
-		URL:         url,
 		HTTP:        nil,
 	}
 	return &Client{service: ss, c: c, leaderChange: make(chan struct{})}, nil
 }
 
-<<<<<<< HEAD
-// A LocalClient implements Client methods against an in-process leader.
-type LocalClient interface {
-	ListHosts() ([]host.Host, error)
-	AddJobs(*host.AddJobsReq) (*host.AddJobsRes, error)
-	RegisterHost(*host.Host, chan *host.Job) Stream
-	RemoveJobs([]string) error
-}
-
-// NewClientWithSelf returns a client configured to use self to talk to the
-// leader with the identifier id.
-func NewClientWithSelf(id string, self LocalClient) (*Client, error) {
-||||||| merged common ancestors
-// A LocalClient implements Client methods against an in-process leader.
-type LocalClient interface {
-	ListHosts() (map[string]host.Host, error)
-	AddJobs(*host.AddJobsReq) (*host.AddJobsRes, error)
-	RegisterHost(*host.Host, chan *host.Job) Stream
-	RemoveJobs([]string) error
-}
-
-// NewClientWithSelf returns a client configured to use self to talk to the
-// leader with the identifier id.
-func NewClientWithSelf(id string, self LocalClient) (*Client, error) {
-=======
 // NewClient returns a client configured to talk to the leader with the
 // identifier id.
 func NewClientWithID(id string) (*Client, error) {
->>>>>>> lots of fixes
 	client, err := newClient(nil)
 	if err != nil {
 		return nil, err
@@ -114,13 +92,12 @@ func NewClientWithID(id string) (*Client, error) {
 type Client struct {
 	service  discoverd.ServiceSet
 	leaderID string
+	selfID   string
 
 	dial httpclient.DialFunc
 	c    *httpclient.Client
 	mtx  sync.RWMutex
 	err  error
-
-	selfID string
 
 	leaderChange chan struct{}
 }
@@ -148,10 +125,7 @@ func (c *Client) followLeader(firstErr chan<- error) {
 		}
 		c.leaderID = update.Attrs["id"]
 		if c.leaderID != c.selfID {
-			c.err = Attempts.Run(func() (err error) {
-				c.c, err = rpcplus.DialHTTPPath("tcp", update.Addr, rpcplus.DefaultRPCPath, c.dial)
-				return
-			})
+			c.c.URL = update.Addr // TODO: append port?
 		}
 		if c.err == nil {
 			close(c.leaderChange)
@@ -201,17 +175,16 @@ func (c *Client) LeaderID() string {
 // ListHosts returns a map of host ids to host structures containing metadata
 // and job lists.
 func (c *Client) ListHosts() (map[string]host.Host, error) {
-	if c := c.local(); c != nil {
-		return c.ListHosts()
-	}
 	var hosts map[string]host.Host
 	return hosts, c.c.Get("/cluster/hosts", &hosts)
 }
 
 // AddJobs requests the addition of more jobs to the cluster.
-func (c *Client) AddJobs(req *host.AddJobsReq) (*host.AddJobsRes, error) {
-	var res host.AddJobsRes
-	return res, c.c.Post(fmt.Sprintf("/cluster/jobs", req, &res))
+// jobs is a map of host id -> new jobs. Returns the state of the cluster after
+// the operation.
+func (c *Client) AddJobs(jobs map[string][]*host.Job) (map[string]host.Host, error) {
+	var hosts map[string]host.Host
+	return hosts, c.c.Post(fmt.Sprintf("/cluster/jobs"), jobs, &hosts)
 }
 
 // DialHost dials and returns a host client for the specified host identifier.
@@ -231,19 +204,86 @@ func (c *Client) DialHost(id string) (Host, error) {
 
 // RegisterHost is used by the host service to register itself with the leader
 // and get a stream of new jobs. It is not used by clients.
-func (c *Client) RegisterHost(host *host.Host, jobs chan *host.Job) io.Closer {
-	header := http.Header{}
-	res, err := c.c.RawReq("PUT", fmt.Sprintf("/cluster/hosts/%s", c.selfID), header, host, nil)
+func (c *Client) RegisterHost(h *host.Host, jobs chan host.Job) io.Closer {
+	header := http.Header{"Accept": []string{"text/event-stream"}}
+	res, err := c.c.RawReq("PUT", fmt.Sprintf("/cluster/hosts/%s", h.ID), header, h, nil)
+
+	stream := JobEventStream{
+		Chan: jobs,
+		body: res.Body,
+	}
+	go func() {
+		defer func() {
+			close(stream.Chan)
+			stream.Close()
+		}()
+
+		r := bufio.NewReader(stream.body)
+		dec := sse.NewDecoder(r)
+		for {
+			event := host.Job{}
+			if err := dec.Decode(&event); err != nil {
+				break
+			}
+			stream.Chan <- event
+		}
+	}()
+	return stream
+}
+
+type JobEventStream struct {
+	Chan chan<- host.Job
+	body io.ReadCloser
+}
+
+func (e JobEventStream) Close() error {
+	return e.body.Close()
 }
 
 // RemoveJobs is used by flynn-host to delete jobs from the cluster state. It
 // does not actually kill jobs running on hosts, and must not be used by
 // clients.
+
+// TODO: how does this work, since the client method doesn't take a hostID, but
+// we clearly need a hostID on the server end
+// TODO: do we only support stopping a single job, or do we still take arrays
 func (c *Client) RemoveJobs(jobIDs []string) error {
-	return c.c.Delete(fmt.Sprintf("/cluster/hosts/%s/jobs/%s", c.selfID, job_id))
+	return c.c.Delete(fmt.Sprintf("/cluster/hosts/%s/jobs/%s", hostID, job_id))
 }
 
 // StreamHostEvents sends a stream of host events from the host to ch.
-func (c *Client) StreamHostEvents(ch chan<- *host.HostEvent) io.Closer {
-	return rpcStream{c.c.StreamGo("Cluster.StreamHostEvents", struct{}{}, ch)}
+func (c *Client) StreamHostEvents(ch chan<- host.HostEvent) io.Closer {
+	header := http.Header{"Accept": []string{"text/event-stream"}}
+	res, err := c.c.RawReq("GET", "/cluster/events", header, nil, nil)
+
+	stream := HostEventStream{
+		Chan: ch,
+		body: res.Body,
+	}
+	go func() {
+		defer func() {
+			close(ch)
+			stream.Close()
+		}()
+
+		r := bufio.NewReader(stream.body)
+		dec := sse.NewDecoder(r)
+		for {
+			event := host.HostEvent{}
+			if err := dec.Decode(&event); err != nil {
+				break
+			}
+			stream.Chan <- event
+		}
+	}()
+	return stream
+}
+
+type HostEventStream struct {
+	Chan chan<- host.HostEvent
+	body io.ReadCloser
+}
+
+func (e HostEventStream) Close() error {
+	return e.body.Close()
 }

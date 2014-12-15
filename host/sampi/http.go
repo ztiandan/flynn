@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"io/ioutil"
 	"net/http"
 
 	"github.com/flynn/flynn/Godeps/_workspace/src/github.com/julienschmidt/httprouter"
@@ -28,24 +29,23 @@ func (s *Cluster) ListHosts(ret *map[string]host.Host) error {
 	return nil
 }
 
-func (s *Cluster) AddJobs(req *host.AddJobsReq, res *host.AddJobsRes) error {
+func (s *Cluster) AddJobs(req map[string][]*host.Job) (map[string]host.Host, error) {
 	s.state.Begin()
-	*res = host.AddJobsRes{}
-	for host, jobs := range req.HostJobs {
+	for host, jobs := range req {
 		if err := s.state.AddJobs(host, jobs); err != nil {
 			s.state.Rollback()
-			return err
+			return nil, err
 		}
 	}
-	res.State = s.state.Commit()
+	res := s.state.Commit()
 
-	for host, jobs := range req.HostJobs {
+	for host, jobs := range req {
 		for _, job := range jobs {
 			s.state.SendJob(host, job)
 		}
 	}
 
-	return nil
+	return res, nil
 }
 
 // Host Service methods
@@ -164,25 +164,20 @@ func registerHost(c *Cluster, w http.ResponseWriter, r *http.Request, ps httprou
 }
 
 func addJobs(c *Cluster, w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	var err error
-	var data []byte
-
 	rh := httphelper.NewReponseHelper(w)
-	//hostID := ps.ByName("host_id")
-	req := host.AddJobsReq{}
-	res := host.AddJobsRes{}
 
-	_, err = r.Body.Read(data)
+	data, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		rh.Error(err)
 		return
 	}
-	err = json.Unmarshal(data, &req)
-	if err != nil {
+
+	var req map[string][]*host.Job
+	if err := json.Unmarshal(data, &req); err != nil {
 		rh.Error(err)
 		return
 	}
-	err = c.AddJobs(&req, &res)
+	res, err := c.AddJobs(req)
 	if err != nil {
 		rh.Error(err)
 		return
@@ -193,8 +188,7 @@ func addJobs(c *Cluster, w http.ResponseWriter, r *http.Request, ps httprouter.P
 func removeJob(c *Cluster, w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	hostID := ps.ByName("host_id")
 	jobIDs := []string{ps.ByName("job_id")}
-	err := c.RemoveJobs(hostID, jobIDs)
-	if err != nil {
+	if err := c.RemoveJobs(hostID, jobIDs); err != nil {
 		httphelper.NewReponseHelper(w).Error(err)
 		return
 	}

@@ -80,8 +80,8 @@ type context struct {
 }
 
 type clusterClient interface {
-	ListHosts() ([]host.Host, error)
-	AddJobs(req *host.AddJobsReq) (*host.AddJobsRes, error)
+	ListHosts() (map[string]host.Host, error)
+	AddJobs(jobs map[string][]*host.Job) (map[string]host.Host, error)
 	DialHost(id string) (cluster.Host, error)
 	StreamHostEvents(ch chan<- *host.HostEvent) stream.Stream
 }
@@ -726,7 +726,7 @@ func (f *Formation) start(typ string, hostID string) (job *Job, err error) {
 	job.Formation = f
 	f.c.jobs.Add(job)
 
-	_, err = f.c.AddJobs(&host.AddJobsReq{HostJobs: map[string][]*host.Job{h.ID: {config}}})
+	_, err = f.c.AddJobs(map[string][]*host.Job{h.ID: {config}})
 	if err != nil {
 		f.jobs.Remove(job)
 		f.c.jobs.Remove(config.ID, h.ID)

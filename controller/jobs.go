@@ -130,7 +130,7 @@ func scanJobEvent(s postgres.Scanner) (*ct.JobEvent, error) {
 type clusterClient interface {
 	ListHosts() ([]host.Host, error)
 	DialHost(string) (cluster.Host, error)
-	AddJobs(*host.AddJobsReq) (*host.AddJobsRes, error)
+	AddJobs(map[string][]*host.Job) (map[string]host.Host, error)
 }
 
 func listJobs(req *http.Request, w http.ResponseWriter, app *ct.App, repo *JobRepo, r ResponseHelper) {
@@ -506,7 +506,7 @@ func runJob(app *ct.App, newJob ct.NewJob, releases *ReleaseRepo, artifacts *Art
 		defer attachClient.Close()
 	}
 
-	_, err = cl.AddJobs(&host.AddJobsReq{HostJobs: map[string][]*host.Job{hostID: {job}}})
+	_, err = cl.AddJobs(map[string][]*host.Job{hostID: {job}})
 	if err != nil {
 		r.Error(fmt.Errorf("schedule failed: %s", err.Error()))
 		return
