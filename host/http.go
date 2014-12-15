@@ -58,21 +58,21 @@ func (h *Host) StopJob(id string) error {
 	}
 }
 
-func (h *Host) StreamEvents(id string, stream rpcplus.Stream) error {
+func (h *Host) streamEvents(id string, w http.ResponseWriter) error {
 	ch := h.state.AddListener(id)
-	defer h.state.RemoveListener(id, ch)
-	for {
-		select {
-		case event := <-ch:
-			select {
-			case stream.Send <- event:
-			case <-stream.Error:
-				return nil
-			}
-		case <-stream.Error:
-			return nil
-		}
+	go func() {
+		<-w.(http.CloseNotifier).CloseNotify()
+		h.state.RemoveListener(id, ch)
+	}()
+	enc := json.NewEncoder(sse.NewSSEWriter(w))
+	w.Header().Set("Content-Type", "text/event-stream; charset=utf-8")
+	w.WriteHeader(200)
+	w.(http.Flusher).Flush()
+	for data := range ch {
+		enc.Encode(data) // TODO: check failure
+		w.(http.Flusher).Flush()
 	}
+	return nil
 }
 
 type HostHandle func(*Host, http.ResponseWriter, *http.Request, httprouter.Params)
@@ -85,7 +85,12 @@ func hostMiddleware(host *Host, handle HostHandle) httprouter.Handle {
 }
 
 func listJobs(h *Host, w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	// Optionally -- Accept: text/event-stream
+	if strings.Contains(r.Header.Get("Accept"), "text/event-stream") {
+		if err := streamEvents("all", w); err != nil {
+			r.Error(err)
+		}
+		return
+	}
 	rh := httphelper.NewReponseHelper(w)
 	res, err := h.state.Get()
 	if err != nil {
@@ -99,6 +104,12 @@ func getJob(h *Host, w http.ResponseWriter, r *http.Request, ps httprouter.Param
 	rh := httphelper.NewReponseHelper(w)
 	id := ps.ByName("id")
 
+	if strings.Contains(r.Header.Get("Accept"), "text/event-stream") {
+		if err := streamEvents(id, w); err != nil {
+			r.Error(err)
+		}
+		return
+	}
 	job := h.state.GetJob(id)
 	rh.JSON(200, job)
 }
