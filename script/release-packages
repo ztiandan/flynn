@@ -28,9 +28,6 @@
 # - Trigger cache of passphrase by signing something
 #   export GPG_TTY=`tty`
 #   echo | gpg --sign --yes --use-agent --output /dev/null /dev/stdin
-#
-# - Log in to Docker to push images
-#   docker login
 
 set -eo pipefail
 
@@ -46,16 +43,16 @@ OPTIONS:
   -h            Show this message
   -k            Keep release directory
   -b BUCKET     The S3 bucket to sync the apt repo with [default: flynn]
-  -p PREFIX     The image URL prefix
   -r DIR        Resume the release using DIR
+  -s REGISTRY   The image registry URL
 USAGE
 }
 
 main() {
-  local bucket dir image_prefix
+  local bucket dir registry_url
   local keep=false
 
-  while getopts "hkb:p:r:" opt; do
+  while getopts "hkb:r:s:" opt; do
     case $opt in
       h)
         usage
@@ -63,13 +60,13 @@ main() {
         ;;
       k) keep=true ;;
       b) bucket=${OPTARG} ;;
-      p) image_prefix=${OPTARG} ;;
       r)
         dir=${OPTARG}
         if [[ ! -d "${dir}" ]]; then
           fail "No such directory: ${dir}"
         fi
         ;;
+      s) registry_url=${OPTARG} ;;
       ?)
         usage
         exit 1
@@ -129,8 +126,8 @@ main() {
   git checkout --force --quiet $commit
   git tag "v${version}"
 
-  if [[ -n "${image_prefix}" ]]; then
-    sed "s/^CONFIG_IMAGE_URL_PREFIX=.*$/CONFIG_IMAGE_URL_PREFIX=${image_prefix}/" -i tup.config
+  if [[ -n "${registry_url}" ]]; then
+    sed "s/^CONFIG_REGISTRY_URL=.*$/CONFIG_REGISTRY_URL=${registry_url}/" -i tup.config
   fi
 
   make

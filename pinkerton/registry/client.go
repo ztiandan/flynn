@@ -21,15 +21,18 @@ func NewRef(s string) (*Ref, error) {
 	}
 
 	q := u.Query()
+	if q.Get("name") == "" {
+		return nil, fmt.Errorf("registry: name must be provided")
+	}
 	if q.Get("tag") != "" && q.Get("id") != "" {
 		return nil, fmt.Errorf("registry: only one of id or tag may be provided")
 	}
 
 	ref := &Ref{
 		tag:     q.Get("tag"),
-		repo:    strings.TrimPrefix(u.Path, "/"),
+		repo:    q.Get("name"),
 		imageID: q.Get("id"),
-		index:   fmt.Sprintf("%s://%s/v1", u.Scheme, u.Host),
+		index:   fmt.Sprintf("%s://%s/%s/v1", u.Scheme, u.Host, strings.TrimSuffix(u.Path, "/")),
 		scheme:  u.Scheme,
 	}
 	if u.User != nil {

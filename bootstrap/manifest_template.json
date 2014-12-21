@@ -25,7 +25,7 @@
     },
     "artifact": {
       "type": "docker",
-      "uri": "$image_url_prefix/postgresql?id=$image_id[postgresql]"
+      "uri": "$image_uri[postgresql]"
     },
     "processes": {
       "postgres": 1,
@@ -82,7 +82,7 @@
     },
     "artifact": {
       "type": "docker",
-      "uri": "$image_url_prefix/controller?id=$image_id[controller]"
+      "uri": "$image_uri[controller]"
     },
     "processes": {
       "web": 1
@@ -138,7 +138,7 @@
     },
     "artifact": {
       "type": "docker",
-      "uri": "$image_url_prefix/blobstore?id=$image_id[blobstore]"
+      "uri": "$image_uri[blobstore]"
     },
     "release": {
       "processes": {
@@ -161,7 +161,7 @@
     },
     "artifact": {
       "type": "docker",
-      "uri": "$image_url_prefix/router?id=$image_id[router]"
+      "uri": "$image_uri[router]"
     },
     "release": {
       "processes": {
@@ -189,7 +189,7 @@
     },
     "artifact": {
       "type": "docker",
-      "uri": "$image_url_prefix/receiver?id=$image_id[receiver]"
+      "uri": "$image_uri[receiver]"
     },
     "release": {
       "processes": {
@@ -198,8 +198,8 @@
           "env": {
             "SSH_PRIVATE_KEYS": "{{ (index .StepData \"gitreceive-key\").PrivateKeys }}",
             "CONTROLLER_AUTH_KEY": "{{ (index .StepData \"controller-key\").Data }}",
-            "SLUGBUILDER_IMAGE_URI": "$image_url_prefix/slugbuilder?id=$image_id[slugbuilder]",
-            "SLUGRUNNER_IMAGE_URI": "$image_url_prefix/slugrunner?id=$image_id[slugrunner]"
+            "SLUGBUILDER_IMAGE_URI": "$image_uri[slugbuilder]",
+            "SLUGRUNNER_IMAGE_URI": "$image_uri[slugrunner]"
           }
         }
       }
@@ -256,13 +256,13 @@
     },
     "artifact": {
       "type": "docker",
-      "uri": "$image_url_prefix/taffy?id=$image_id[taffy]"
+      "uri": "$image_uri[taffy]"
     },
     "release": {
       "env": {
         "CONTROLLER_AUTH_KEY": "{{ (index .StepData \"controller-key\").Data }}",
-        "SLUGBUILDER_IMAGE_URI": "$image_url_prefix/slugbuilder?id=$image_id[slugbuilder]",
-        "SLUGRUNNER_IMAGE_URI": "$image_url_prefix/slugrunner?id=$image_id[slugrunner]"
+        "SLUGBUILDER_IMAGE_URI": "$image_uri[slugbuilder]",
+        "SLUGRUNNER_IMAGE_URI": "$image_uri[slugrunner]"
       }
     }
   },
@@ -275,7 +275,7 @@
     },
     "artifact": {
       "type": "docker",
-      "uri": "$image_url_prefix/dashboard?id=$image_id[dashboard]"
+      "uri": "$image_uri[dashboard]"
     },
     "release": {
       "env": {

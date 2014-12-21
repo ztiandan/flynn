@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -46,34 +45,33 @@ func manifest(args *docopt.Args) {
 		log.Fatal(err)
 	}
 
-	if err := interpolateManifest(lookup, args.String["--image-url-prefix"], src, dest); err != nil {
+	if err := interpolateManifest(lookup, args.String["--registry"], src, dest); err != nil {
 		log.Fatal(err)
 	}
 }
 
-var imageIDPattern = regexp.MustCompile(`\$image_id\[[^\]]+\]`)
+var imageURIPattern = regexp.MustCompile(`\$image_uri\[[^\]]+\]`)
 
-func interpolateManifest(lookup idLookupFunc, imageURLPrefix string, src io.Reader, dest io.Writer) error {
+func interpolateManifest(lookup idLookupFunc, registry string, src io.Reader, dest io.Writer) error {
 	manifest, err := ioutil.ReadAll(src)
 	if err != nil {
 		return err
 	}
-	manifest = bytes.Replace(manifest, []byte("$image_url_prefix"), []byte(imageURLPrefix), -1)
 	var replaceErr interface{}
 	func() {
 		defer func() {
 			replaceErr = recover()
 		}()
-		manifest = imageIDPattern.ReplaceAllFunc(manifest, func(raw []byte) []byte {
-			imageName := string(raw[10 : len(raw)-1])
+		manifest = imageURIPattern.ReplaceAllFunc(manifest, func(raw []byte) []byte {
+			imageName := string(raw[11 : len(raw)-1])
 			if !strings.Contains(imageName, "/") {
 				imageName = "flynn/" + imageName
 			}
-			res, err := lookup(imageName)
+			id, err := lookup(imageName)
 			if err != nil {
 				panic(err)
 			}
-			return res
+			return []byte(registry + "?name=" + imageName + "&id=" + string(id))
 		})
 	}()
 	if replaceErr != nil {
