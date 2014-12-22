@@ -9,6 +9,8 @@ import (
 
 	"github.com/flynn/flynn/Godeps/_workspace/src/github.com/julienschmidt/httprouter"
 	"github.com/flynn/flynn/host/types"
+	"github.com/flynn/flynn/host/volume"
+	"github.com/flynn/flynn/host/volume/api"
 	"github.com/flynn/flynn/pkg/httphelper"
 	"github.com/flynn/flynn/pkg/shutdown"
 	"github.com/flynn/flynn/pkg/sse"
@@ -112,6 +114,7 @@ func serveHTTP(host *Host, attach *attachHandler, sh *shutdown.Handler) (*httpro
 
 	hostAPI := &hostAPI{host}
 	hostAPI.RegisterRoutes(r)
+	volumeAPI := volumeapi.NewHttpAPI
 
 	go http.Serve(l, r)
 

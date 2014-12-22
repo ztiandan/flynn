@@ -10,3 +10,11 @@ package volume
 type Provider interface {
 	NewVolume() (Volume, error)
 }
+
+type ProviderSpec struct {
+	// names the kind of provider (roughly matches an enum of known names)
+	Kind string `json:"kind"`
+
+	// parameters to pass to the provider during its creation/configuration.  values vary per implementation kind.
+	Metadata map[string]string `json:"metadata,omitempty"`
+}
