@@ -257,7 +257,7 @@ func (c *Client) RemoveJobs(jobIDs []string) error {
 }
 
 // StreamHostEvents sends a stream of host events from the host to ch.
-func (c *Client) StreamHostEvents(ch chan<- host.HostEvent) io.Closer {
+func (c *Client) StreamHostEvents(ch chan host.HostEvent) io.Closer {
 	header := http.Header{"Accept": []string{"text/event-stream"}}
 	res, err := c.c.RawReq("GET", "/cluster/events", header, nil, nil)
 

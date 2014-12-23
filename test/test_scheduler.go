@@ -33,7 +33,7 @@ func (s *SchedulerSuite) checkJobState(t *c.C, appID, jobID, state string) {
 
 func (s *SchedulerSuite) addHosts(t *c.C, count int) []string {
 	debugf(t, "adding %d hosts", count)
-	ch := make(chan *host.HostEvent)
+	ch := make(chan host.HostEvent)
 	stream := s.clusterClient(t).StreamHostEvents(ch)
 	defer stream.Close()
 

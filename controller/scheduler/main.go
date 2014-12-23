@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"io"
 	"log"
 	"os"
 	"sort"
@@ -16,7 +17,6 @@ import (
 	"github.com/flynn/flynn/host/types"
 	"github.com/flynn/flynn/pkg/attempt"
 	"github.com/flynn/flynn/pkg/cluster"
-	"github.com/flynn/flynn/pkg/stream"
 )
 
 var backoffPeriod = 10 * time.Minute
@@ -83,14 +83,15 @@ type clusterClient interface {
 	ListHosts() ([]host.Host, error)
 	AddJobs(jobs map[string][]*host.Job) (map[string]host.Host, error)
 	DialHost(id string) (cluster.Host, error)
-	StreamHostEvents(ch chan<- *host.HostEvent) stream.Stream
+	// StreamHostEvents return a io.Closer to close the stream
+	StreamHostEvents(ch chan host.HostEvent) io.Closer
 }
 
 type controllerClient interface {
 	GetRelease(releaseID string) (*ct.Release, error)
 	GetArtifact(artifactID string) (*ct.Artifact, error)
 	GetFormation(appID, releaseID string) (*ct.Formation, error)
-	StreamFormations(since *time.Time, output chan<- *ct.ExpandedFormation) (stream.Stream, error)
+	StreamFormations(since *time.Time) (*controller.FormationUpdates, error)
 	PutJob(job *ct.Job) error
 }
 
@@ -198,13 +199,12 @@ func (c *context) watchFormations() {
 		}
 
 		g.Log(grohl.Data{"at": "connect", "attempt": attempts})
-		updates := make(chan *ct.ExpandedFormation)
-		streamCtrl, err := c.StreamFormations(&lastUpdatedAt, updates)
+		updates, err := c.StreamFormations(&lastUpdatedAt)
 		if err != nil {
 			g.Log(grohl.Data{"at": "error", "error": err})
 			continue
 		}
-		for ef := range updates {
+		for ef := range updates.Chan {
 			// we are now connected so reset attempts
 			attempts = 0
 
@@ -233,9 +233,6 @@ func (c *context) watchFormations() {
 			}
 			go f.Rectify()
 		}
-		if streamCtrl.Err() != nil {
-			g.Log(grohl.Data{"at": "disconnect", "err": streamCtrl.Err()})
-		}
 		g.Log(grohl.Data{"at": "disconnect"})
 	}
 }
@@ -247,7 +244,7 @@ func (c *context) watchHosts() {
 	}
 
 	go func() { // watch for new hosts
-		ch := make(chan *host.HostEvent)
+		ch := make(chan host.HostEvent)
 		c.StreamHostEvents(ch)
 		for event := range ch {
 			if event.Event != "add" {
@@ -274,7 +271,7 @@ var putJobAttempts = attempt.Strategy{
 	Delay: 500 * time.Millisecond,
 }
 
-func jobState(event *host.Event) string {
+func jobState(event host.Event) string {
 	switch event.Job.Status {
 	case host.StatusStarting:
 		return "starting"
@@ -315,7 +312,7 @@ func (c *context) watchHost(id string) {
 
 	g.Log(grohl.Data{"at": "start"})
 
-	ch := make(chan *host.Event)
+	ch := make(chan host.Event)
 	h.StreamEvents("all", ch)
 
 	for event := range ch {
@@ -338,7 +335,7 @@ func (c *context) watchHost(id string) {
 		g.Log(grohl.Data{"at": "event", "job.id": event.JobID, "event": event.Event})
 
 		// Call PutJob in a goroutine as it may be the controller which has died
-		go func(event *host.Event) {
+		go func(event host.Event) {
 			putJobAttempts.Run(func() error {
 				if err := c.PutJob(job); err != nil {
 					g.Log(grohl.Data{"at": "error", "job.id": event.JobID, "event": event.Event, "err": err})
@@ -361,7 +358,7 @@ func (c *context) watchHost(id string) {
 		g.Log(grohl.Data{"at": "remove", "job.id": event.JobID, "event": event.Event})
 
 		c.jobs.Remove(id, event.JobID)
-		go func(event *host.Event) {
+		go func(event host.Event) {
 			c.mtx.RLock()
 			j.Formation.RestartJob(jobType, id, event.JobID)
 			c.mtx.RUnlock()
