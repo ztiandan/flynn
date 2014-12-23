@@ -81,6 +81,10 @@ func (c *hostClient) StreamEvents(id string, ch chan<- host.Event) io.Closer {
 	}
 	res, err := c.c.RawReq("GET", r, header, nil, nil)
 
+	if err != nil {
+		return nil
+	}
+
 	stream := EventStream{
 		Chan: ch,
 		body: res.Body,

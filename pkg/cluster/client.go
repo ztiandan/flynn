@@ -208,6 +208,10 @@ func (c *Client) RegisterHost(h *host.Host, jobs chan host.Job) io.Closer {
 	header := http.Header{"Accept": []string{"text/event-stream"}}
 	res, err := c.c.RawReq("PUT", fmt.Sprintf("/cluster/hosts/%s", h.ID), header, h, nil)
 
+	if err != nil {
+		return nil
+	}
+
 	stream := JobEventStream{
 		Chan: jobs,
 		body: res.Body,
@@ -248,13 +252,18 @@ func (e JobEventStream) Close() error {
 // we clearly need a hostID on the server end
 // TODO: do we only support stopping a single job, or do we still take arrays
 func (c *Client) RemoveJobs(jobIDs []string) error {
-	return c.c.Delete(fmt.Sprintf("/cluster/hosts/%s/jobs/%s", hostID, job_id))
+	jobID := jobIDs[0]
+	return c.c.Delete(fmt.Sprintf("/cluster/hosts/%s/jobs/%s", c.selfID, jobID))
 }
 
 // StreamHostEvents sends a stream of host events from the host to ch.
 func (c *Client) StreamHostEvents(ch chan<- host.HostEvent) io.Closer {
 	header := http.Header{"Accept": []string{"text/event-stream"}}
 	res, err := c.c.RawReq("GET", "/cluster/events", header, nil, nil)
+
+	if err != nil {
+		return nil
+	}
 
 	stream := HostEventStream{
 		Chan: ch,
