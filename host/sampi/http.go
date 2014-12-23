@@ -25,9 +25,13 @@ func NewCluster(state *State) *Cluster {
 
 // Scheduler Methods
 
-func (s *Cluster) ListHosts(ret *map[string]host.Host) error {
-	*ret = s.state.Get()
-	return nil
+func (s *Cluster) ListHosts() ([]host.Host, error) {
+	hostMap := s.state.Get()
+	hostSlice := make([]host.Host, 0, len(hostMap))
+	for _, h := range hostMap {
+		hostSlice = append(hostSlice, h)
+	}
+	return hostSlice, nil
 }
 
 func (s *Cluster) AddJobs(req map[string][]*host.Job) (map[string]host.Host, error) {
@@ -104,8 +108,7 @@ func (s *Cluster) StreamHostEvents(ch chan host.HostEvent, done chan bool) error
 // HTTP Route Handles
 func listHosts(c *Cluster, w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	rh := httphelper.NewReponseHelper(w)
-	ret := make(map[string]host.Host)
-	err := c.ListHosts(&ret)
+	ret, err := c.ListHosts()
 	if err != nil {
 		rh.Error(err)
 		return

@@ -174,8 +174,8 @@ func (c *Client) LeaderID() string {
 
 // ListHosts returns a map of host ids to host structures containing metadata
 // and job lists.
-func (c *Client) ListHosts() (map[string]host.Host, error) {
-	var hosts map[string]host.Host
+func (c *Client) ListHosts() ([]host.Host, error) {
+	var hosts []host.Host
 	return hosts, c.c.Get("/cluster/hosts", &hosts)
 }
 
