@@ -1,25 +1,20 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"net"
 	"net/http"
+	"strings"
 
 	"github.com/flynn/flynn/Godeps/_workspace/src/github.com/julienschmidt/httprouter"
 	"github.com/flynn/flynn/host/types"
 	"github.com/flynn/flynn/pkg/httphelper"
 	"github.com/flynn/flynn/pkg/shutdown"
+	"github.com/flynn/flynn/pkg/sse"
 )
 
 func serveHTTP(host *Host, attach *attachHandler, sh *shutdown.Handler) error {
-	r := httprouter.New()
-	r.GET("/host/jobs", listJobs)
-	r.GET("/host/jobs/:id", getJob)
-	r.DELETE("/host/jobs/:id", stopJob)
-	go http.ListenAndServe(":8000", r)
-
-	http.Handle("/attach", attach)
-
 	l, err := net.Listen("tcp", ":1113")
 	if err != nil {
 		return err
@@ -27,11 +22,12 @@ func serveHTTP(host *Host, attach *attachHandler, sh *shutdown.Handler) error {
 	sh.BeforeExit(func() { l.Close() })
 	go http.Serve(l, nil)
 
-	r := httprouter.New()
+	http.Handle("/attach", attach)
 
-	r.GET("/host/jobs", hostMiddleware(listJobs))
-	r.GET("/host/jobs/:id", hostMiddleware(getJob))
-	r.DELETE("/host/jobs/:id", hostMiddleware(stopJob))
+	r := httprouter.New()
+	r.GET("/host/jobs", hostMiddleware(host, listJobs))
+	r.GET("/host/jobs/:id", hostMiddleware(host, getJob))
+	r.DELETE("/host/jobs/:id", hostMiddleware(host, stopJob))
 	go http.ListenAndServe(":8000", r)
 
 	return nil
@@ -85,18 +81,15 @@ func hostMiddleware(host *Host, handle HostHandle) httprouter.Handle {
 }
 
 func listJobs(h *Host, w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	rh := httphelper.NewReponseHelper(w)
 	if strings.Contains(r.Header.Get("Accept"), "text/event-stream") {
-		if err := streamEvents("all", w); err != nil {
-			r.Error(err)
+		if err := h.streamEvents("all", w); err != nil {
+			rh.Error(err)
 		}
 		return
 	}
-	rh := httphelper.NewReponseHelper(w)
-	res, err := h.state.Get()
-	if err != nil {
-		rh.Error(err)
-		return
-	}
+	res := h.state.Get()
+
 	rh.JSON(200, res)
 }
 
@@ -105,8 +98,8 @@ func getJob(h *Host, w http.ResponseWriter, r *http.Request, ps httprouter.Param
 	id := ps.ByName("id")
 
 	if strings.Contains(r.Header.Get("Accept"), "text/event-stream") {
-		if err := streamEvents(id, w); err != nil {
-			r.Error(err)
+		if err := h.streamEvents(id, w); err != nil {
+			rh.Error(err)
 		}
 		return
 	}
