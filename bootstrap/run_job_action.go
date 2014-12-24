@@ -54,7 +54,8 @@ func startJob(s *State, hostID string, job *host.Job) (*Job, error) {
 
 	jobStatus := make(chan error)
 	events := make(chan host.Event)
-	stream := hc.StreamEvents(data.JobID, events)
+	stream, err := hc.StreamEvents(data.JobID, events)
+	// TODO handle that err
 	go func() {
 		defer stream.Close()
 		for e := range events {

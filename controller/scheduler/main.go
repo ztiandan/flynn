@@ -84,7 +84,7 @@ type clusterClient interface {
 	AddJobs(jobs map[string][]*host.Job) (map[string]host.Host, error)
 	DialHost(id string) (cluster.Host, error)
 	// StreamHostEvents return a io.Closer to close the stream
-	StreamHostEvents(ch chan host.HostEvent) io.Closer
+	StreamHostEvents(ch chan host.HostEvent) (io.Closer, error)
 }
 
 type controllerClient interface {
