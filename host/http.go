@@ -20,15 +20,13 @@ func serveHTTP(host *Host, attach *attachHandler, sh *shutdown.Handler) error {
 		return err
 	}
 	sh.BeforeExit(func() { l.Close() })
-	go http.Serve(l, nil)
-
-	http.Handle("/attach", attach)
 
 	r := httprouter.New()
+	r.POST("/attach", attach)
 	r.GET("/host/jobs", hostMiddleware(host, listJobs))
 	r.GET("/host/jobs/:id", hostMiddleware(host, getJob))
 	r.DELETE("/host/jobs/:id", hostMiddleware(host, stopJob))
-	go http.ListenAndServe(":8000", r)
+	go http.Serve(l, r)
 
 	return nil
 }

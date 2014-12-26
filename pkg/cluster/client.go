@@ -125,7 +125,7 @@ func (c *Client) followLeader(firstErr chan<- error) {
 		}
 		c.leaderID = update.Attrs["id"]
 		if c.leaderID != c.selfID {
-			c.c.URL = update.Addr // TODO: append port?
+			c.c.URL = update.Addr
 		}
 		if c.err == nil {
 			close(c.leaderChange)
