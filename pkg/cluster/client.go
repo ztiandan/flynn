@@ -113,6 +113,7 @@ func (c *Client) followLeader(firstErr chan<- error) {
 		}
 		c.leaderID = update.Attrs["id"]
 		c.c.URL = update.Addr
+		// TODO: cancel any current requests
 		if c.err == nil {
 			close(c.leaderChange)
 			c.leaderChange = make(chan struct{})
@@ -230,16 +231,13 @@ func (e JobEventStream) Close() error {
 	return e.body.Close()
 }
 
-// RemoveJobs is used by flynn-host to delete jobs from the cluster state. It
+// RemoveJob is used by flynn-host to delete jobs from the cluster state. It
 // does not actually kill jobs running on hosts, and must not be used by
 // clients.
 
-// TODO: how does this work, since the client method doesn't take a hostID, but
-// we clearly need a hostID on the server end
-// TODO: do we only support stopping a single job, or do we still take arrays
-func (c *Client) RemoveJobs(jobIDs []string) error {
-	jobID := jobIDs[0]
-	return c.c.Delete(fmt.Sprintf("/cluster/hosts/%s/jobs/%s", c.selfID, jobID))
+// TODO: make code support the new signature
+func (c *Client) RemoveJob(hostID, jobID string) error {
+	return c.c.Delete(fmt.Sprintf("/cluster/hosts/%s/jobs/%s", hostID, jobID))
 }
 
 // StreamHostEvents sends a stream of host events from the host to ch.
