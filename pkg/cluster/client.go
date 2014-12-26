@@ -75,24 +75,12 @@ func newClient(services ServiceSetFunc) (*Client, error) {
 	return &Client{service: ss, c: c, leaderChange: make(chan struct{})}, nil
 }
 
-// NewClient returns a client configured to talk to the leader with the
-// identifier id.
-func NewClientWithID(id string) (*Client, error) {
-	client, err := newClient(nil)
-	if err != nil {
-		return nil, err
-	}
-	client.selfID = id
-	return client, client.start()
-}
-
 // A Client is used to interact with the leader of a Flynn host service cluster
 // leader. If the leader changes, the client uses service discovery to connect
 // to the new leader automatically.
 type Client struct {
 	service  discoverd.ServiceSet
 	leaderID string
-	selfID   string
 
 	dial httpclient.DialFunc
 	c    *httpclient.Client
@@ -124,9 +112,7 @@ func (c *Client) followLeader(firstErr chan<- error) {
 			c.c = nil
 		}
 		c.leaderID = update.Attrs["id"]
-		if c.leaderID != c.selfID {
-			c.c.URL = update.Addr
-		}
+		c.c.URL = update.Addr
 		if c.err == nil {
 			close(c.leaderChange)
 			c.leaderChange = make(chan struct{})

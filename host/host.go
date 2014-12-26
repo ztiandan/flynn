@@ -263,7 +263,7 @@ func runDaemon(args *docopt.Args) {
 			sampiCluster.ServeHTTP(router, sh)
 		}()
 	}
-	cluster, err := cluster.NewClientWithID(hostID)
+	cluster, err := cluster.NewClient()
 	if err != nil {
 		sh.Fatal(err)
 	}
