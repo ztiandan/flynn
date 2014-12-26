@@ -195,14 +195,12 @@ func removeJob(c *Cluster, w http.ResponseWriter, r *http.Request, ps httprouter
 func streamHostEvents(c *Cluster, w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	ch := make(chan host.HostEvent)
 	done := make(chan bool)
-	err := c.StreamHostEvents(ch, done)
-	if err != nil {
+	if err := c.StreamHostEvents(ch, done); err != nil {
 		httphelper.NewReponseHelper(w).Error(err)
 		return
 	}
 	go func() {
 		<-w.(http.CloseNotifier).CloseNotify()
-		done <- true
 		close(done)
 	}()
 	wr := sse.NewSSEWriter(w)
