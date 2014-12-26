@@ -166,7 +166,8 @@ func runDaemon(args *docopt.Args) {
 		sh.Fatal(err)
 	}
 
-	if err := serveHTTP(&Host{state: state, backend: backend}, &attachHandler{state: state, backend: backend}, sh); err != nil {
+	router, err := serveHTTP(&Host{state: state, backend: backend}, &attachHandler{state: state, backend: backend}, sh)
+	if err != nil {
 		sh.Fatal(err)
 	}
 
@@ -254,12 +255,12 @@ func runDaemon(args *docopt.Args) {
 	select {
 	case <-sampiStandby:
 		g.Log(grohl.Data{"at": "sampi_leader"})
-		sampiCluster.ServeHTTP(sh)
+		sampiCluster.ServeHTTP(router, sh)
 	case <-time.After(5 * time.Millisecond):
 		go func() {
 			<-sampiStandby
 			g.Log(grohl.Data{"at": "sampi_leader"})
-			sampiCluster.ServeHTTP(sh)
+			sampiCluster.ServeHTTP(router, sh)
 		}()
 	}
 	cluster, err := cluster.NewClientWithID(hostID)

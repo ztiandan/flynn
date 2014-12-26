@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io/ioutil"
-	"net"
 	"net/http"
 
 	"github.com/flynn/flynn/Godeps/_workspace/src/github.com/julienschmidt/httprouter"
@@ -220,19 +219,11 @@ func clusterMiddleware(cluster *Cluster, handle ClusterHandle) httprouter.Handle
 	}
 }
 
-func (cluster *Cluster) ServeHTTP(sh *shutdown.Handler) error {
-	r := httprouter.New()
+func (cluster *Cluster) ServeHTTP(r *httprouter.Router, sh *shutdown.Handler) error {
 	r.GET("/cluster/hosts", clusterMiddleware(cluster, listHosts))
 	r.PUT("/cluster/hosts/:id", clusterMiddleware(cluster, registerHost))
 	r.POST("/cluster/hosts/:host_id/jobs", clusterMiddleware(cluster, addJobs))
 	r.DELETE("/cluster/hosts/:host_id/jobs/:job_id", clusterMiddleware(cluster, removeJob))
 	r.GET("/cluster/events", clusterMiddleware(cluster, streamHostEvents))
-
-	l, err := net.Listen("tcp", ":1333")
-	if err != nil {
-		return err
-	}
-	sh.BeforeExit(func() { l.Close() })
-	go http.Serve(l, r)
 	return nil
 }

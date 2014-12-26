@@ -14,10 +14,10 @@ import (
 	"github.com/flynn/flynn/pkg/sse"
 )
 
-func serveHTTP(host *Host, attach *attachHandler, sh *shutdown.Handler) error {
+func serveHTTP(host *Host, attach *attachHandler, sh *shutdown.Handler) (*httprouter.Router, error) {
 	l, err := net.Listen("tcp", ":1113")
 	if err != nil {
-		return err
+		return nil, err
 	}
 	sh.BeforeExit(func() { l.Close() })
 
@@ -28,7 +28,7 @@ func serveHTTP(host *Host, attach *attachHandler, sh *shutdown.Handler) error {
 	r.DELETE("/host/jobs/:id", hostMiddleware(host, stopJob))
 	go http.Serve(l, r)
 
-	return nil
+	return r, nil
 }
 
 type Host struct {
