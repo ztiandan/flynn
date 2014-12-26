@@ -71,9 +71,16 @@ func (s *Cluster) RegisterHost(h *host.Host, ch chan *host.Job, done chan bool) 
 	s.state.Commit()
 	go s.state.sendEvent(h.ID, "add")
 
-	for job := range jobs {
-		ch <- job
+outer:
+	for {
+		select {
+		case job := <-jobs:
+			ch <- job
+		case <-done:
+			break outer
+		}
 	}
+	close(jobs)
 
 	s.state.Begin()
 	s.state.RemoveHost(h.ID)
@@ -140,7 +147,6 @@ func registerHost(c *Cluster, w http.ResponseWriter, r *http.Request, ps httprou
 
 	go func() {
 		<-w.(http.CloseNotifier).CloseNotify()
-		done <- true
 		close(done)
 	}()
 	wr := sse.NewSSEWriter(w)
