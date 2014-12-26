@@ -25,7 +25,7 @@ type Host interface {
 
 	// StreamEvents about job state changes to ch. id may be "all" or a single
 	// job ID.
-	StreamEvents(id string, ch chan host.Event) (io.Closer, error)
+	StreamEvents(id string, ch chan host.Event) (Stream, error)
 
 	// Attach attaches to a job, optionally waiting for it to start before
 	// attaching.
@@ -73,7 +73,7 @@ func (c *hostClient) StopJob(id string) error {
 	return c.c.Delete(fmt.Sprintf("/host/jobs/%s", id))
 }
 
-func (c *hostClient) StreamEvents(id string, ch chan host.Event) (io.Closer, error) {
+func (c *hostClient) StreamEvents(id string, ch chan host.Event) (Stream, error) {
 	header := http.Header{"Accept": []string{"text/event-stream"}}
 	r := fmt.Sprintf("/host/jobs/%s", id)
 	if id == "all" {
@@ -100,6 +100,7 @@ func (c *hostClient) StreamEvents(id string, ch chan host.Event) (io.Closer, err
 		for {
 			event := host.Event{}
 			if err := dec.Decode(&event); err != nil {
+				stream.err = err
 				break
 			}
 			stream.Chan <- event
@@ -115,6 +116,11 @@ func (c *hostClient) Close() error {
 type EventStream struct {
 	Chan chan host.Event
 	body io.ReadCloser
+	err  error
+}
+
+func (e EventStream) Err() error {
+	return e.err
 }
 
 func (e EventStream) Close() error {
