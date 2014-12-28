@@ -21,8 +21,9 @@ memwatch() {
     done
     echo
 
+    free -m
     sleep 1
   done
 }
 
-memwatch "etcd" "discoverd"
+memwatch "etcd" "discoverd" "blobstore" "flynn-host"
