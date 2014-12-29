@@ -22,7 +22,7 @@ func serveHTTP(host *Host, attach *attachHandler, sh *shutdown.Handler) (*httpro
 	sh.BeforeExit(func() { l.Close() })
 
 	r := httprouter.New()
-	r.POST("/attach", attach)
+	r.POST("/attach", attach.ServeHTTP)
 	r.GET("/host/jobs", hostMiddleware(host, listJobs))
 	r.GET("/host/jobs/:id", hostMiddleware(host, getJob))
 	r.DELETE("/host/jobs/:id", hostMiddleware(host, stopJob))
