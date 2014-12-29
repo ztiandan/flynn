@@ -82,8 +82,7 @@ type clusterClient interface {
 	ListHosts() ([]host.Host, error)
 	AddJobs(jobs map[string][]*host.Job) (map[string]host.Host, error)
 	DialHost(id string) (cluster.Host, error)
-	// StreamHostEvents return a io.Closer to close the stream
-	StreamHostEvents(ch chan host.HostEvent) (cluster.Stream, error)
+	StreamHostEvents(ch chan<- *host.HostEvent) (cluster.Stream, error)
 }
 
 type controllerClient interface {
@@ -243,7 +242,7 @@ func (c *context) watchHosts() {
 	}
 
 	go func() { // watch for new hosts
-		ch := make(chan host.HostEvent)
+		ch := make(chan *host.HostEvent)
 		c.StreamHostEvents(ch)
 		for event := range ch {
 			if event.Event != "add" {
@@ -270,7 +269,7 @@ var putJobAttempts = attempt.Strategy{
 	Delay: 500 * time.Millisecond,
 }
 
-func jobState(event host.Event) string {
+func jobState(event *host.Event) string {
 	switch event.Job.Status {
 	case host.StatusStarting:
 		return "starting"
@@ -311,7 +310,7 @@ func (c *context) watchHost(id string) {
 
 	g.Log(grohl.Data{"at": "start"})
 
-	ch := make(chan host.Event)
+	ch := make(chan *host.Event)
 	h.StreamEvents("all", ch)
 
 	for event := range ch {
@@ -334,7 +333,7 @@ func (c *context) watchHost(id string) {
 		g.Log(grohl.Data{"at": "event", "job.id": event.JobID, "event": event.Event})
 
 		// Call PutJob in a goroutine as it may be the controller which has died
-		go func(event host.Event) {
+		go func(event *host.Event) {
 			putJobAttempts.Run(func() error {
 				if err := c.PutJob(job); err != nil {
 					g.Log(grohl.Data{"at": "error", "job.id": event.JobID, "event": event.Event, "err": err})
@@ -357,7 +356,7 @@ func (c *context) watchHost(id string) {
 		g.Log(grohl.Data{"at": "remove", "job.id": event.JobID, "event": event.Event})
 
 		c.jobs.Remove(id, event.JobID)
-		go func(event host.Event) {
+		go func(event *host.Event) {
 			c.mtx.RLock()
 			j.Formation.RestartJob(jobType, id, event.JobID)
 			c.mtx.RUnlock()

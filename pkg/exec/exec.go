@@ -235,7 +235,10 @@ func (c *Cmd) Start() error {
 
 	if c.attachClient == nil {
 		c.eventChan = make(chan *host.Event)
-		c.eventStream = c.host.StreamEvents(c.Job.ID, c.eventChan)
+		c.eventStream, err = c.host.StreamEvents(job.ID, c.eventChan)
+		if err != nil {
+			return err
+		}
 	}
 
 	go func() {

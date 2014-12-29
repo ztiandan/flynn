@@ -289,7 +289,10 @@ func runDaemon(args *docopt.Args) {
 
 		h.Jobs = state.ClusterJobs()
 		jobs := make(chan *host.Job)
-		jobStream = cluster.RegisterHost(h, jobs)
+		jobStream, err = cluster.RegisterHost(h, jobs)
+		if err != nil {
+			sh.Fatal(err)
+		}
 		g.Log(grohl.Data{"at": "host_registered"})
 		for job := range jobs {
 			if externalAddr != "" {

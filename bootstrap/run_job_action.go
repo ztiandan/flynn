@@ -53,9 +53,11 @@ func startJob(s *State, hostID string, job *host.Job) (*Job, error) {
 	defer hc.Close()
 
 	jobStatus := make(chan error)
-	events := make(chan host.Event)
+	events := make(chan *host.Event)
 	stream, err := hc.StreamEvents(data.JobID, events)
-	// TODO handle that err
+	if err != nil {
+		return nil, err
+	}
 	go func() {
 		defer stream.Close()
 		for e := range events {
@@ -78,9 +80,7 @@ func startJob(s *State, hostID string, job *host.Job) (*Job, error) {
 			default:
 			}
 		}
-		//jobStatus <- fmt.Errorf("bootstrap: host job stream disconnected unexpectedly: %q", stream.Err())
-		// TODO replace stream.Err
-		jobStatus <- fmt.Errorf("bootstrap: host job stream disconnected unexpectedly: %q", "")
+		jobStatus <- fmt.Errorf("bootstrap: host job stream disconnected unexpectedly: %q", stream.Err())
 	}()
 
 	_, err = cc.AddJobs(map[string][]*host.Job{hostID: {job}})
