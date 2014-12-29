@@ -240,8 +240,6 @@ func (e JobEventStream) Close() error {
 // RemoveJob is used by flynn-host to delete jobs from the cluster state. It
 // does not actually kill jobs running on hosts, and must not be used by
 // clients.
-
-// TODO: make code support the new signature
 func (c *Client) RemoveJob(hostID, jobID string) error {
 	return c.c.Delete(fmt.Sprintf("/cluster/hosts/%s/jobs/%s", hostID, jobID))
 }

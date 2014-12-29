@@ -272,7 +272,7 @@ func runDaemon(args *docopt.Args) {
 	g.Log(grohl.Data{"at": "sampi_connected"})
 
 	events := state.AddListener("all")
-	go syncScheduler(cluster, events)
+	go syncScheduler(cluster, hostID, events)
 
 	h := &host.Host{}
 	if h.Metadata == nil {
@@ -317,13 +317,13 @@ func runDaemon(args *docopt.Args) {
 	}
 }
 
-func syncScheduler(scheduler *cluster.Client, events <-chan host.Event) {
+func syncScheduler(scheduler *cluster.Client, hostID string, events <-chan host.Event) {
 	for event := range events {
 		if event.Event != "stop" {
 			continue
 		}
 		grohl.Log(grohl.Data{"fn": "scheduler_event", "at": "remove_job", "job.id": event.JobID})
-		if err := scheduler.RemoveJobs([]string{event.JobID}); err != nil {
+		if err := scheduler.RemoveJob(hostID, event.JobID); err != nil {
 			grohl.Log(grohl.Data{"fn": "scheduler_event", "at": "remove_job", "status": "error", "err": err, "job.id": event.JobID})
 		}
 	}
