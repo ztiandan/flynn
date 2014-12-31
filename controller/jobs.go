@@ -256,8 +256,8 @@ func jobLog(req *http.Request, app *ct.App, params martini.Params, hc cluster.Ho
 		defer attachClient.Close()
 	}
 
-	sse := strings.Contains(req.Header.Get("Accept"), "text/event-stream")
-	if sse {
+	use_sse := strings.Contains(req.Header.Get("Accept"), "text/event-stream")
+	if use_sse {
 		w.Header().Set("Content-Type", "text/event-stream; charset=utf-8")
 	} else {
 		w.Header().Set("Content-Type", "application/vnd.flynn.attach")
@@ -269,11 +269,11 @@ func jobLog(req *http.Request, app *ct.App, params martini.Params, hc cluster.Ho
 	}
 
 	fw := flushWriter{w, tail}
-	if sse {
-		ssew := NewSSELogWriter(w)
-		exit, err := attachClient.Receive(flushWriter{ssew.Stream("stdout"), tail}, flushWriter{ssew.Stream("stderr"), tail})
+	if use_sse {
+		ssew := NewSSELogWriter(fw)
+		exit, err := attachClient.Receive(ssew.Stream("stdout"), ssew.Stream("stderr"))
 		if err != nil {
-			fw.Write([]byte("event: error\ndata: {}\n\n"))
+			fmt.Fprintf(fw, "event: error\ndata: %s\n\n", err)
 			return
 		}
 		if tail {
