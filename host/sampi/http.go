@@ -3,7 +3,6 @@ package sampi
 import (
 	"encoding/json"
 	"errors"
-	"io"
 	"io/ioutil"
 	"net/http"
 
@@ -67,7 +66,6 @@ func (s *Cluster) RegisterHost(h *host.Host, ch chan *host.Job, done chan bool) 
 	s.state.Commit()
 	go s.state.sendEvent(h.ID, "add")
 
-	var err error
 	for job := range jobs {
 		ch <- job
 	}
@@ -76,10 +74,7 @@ func (s *Cluster) RegisterHost(h *host.Host, ch chan *host.Job, done chan bool) 
 	s.state.RemoveHost(h.ID)
 	s.state.Commit()
 	go s.state.sendEvent(h.ID, "remove")
-	if err == io.EOF {
-		err = nil
-	}
-	return err
+	return nil
 }
 
 func (s *Cluster) RemoveJobs(hostID string, jobIDs []string) error {
