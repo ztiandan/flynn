@@ -218,21 +218,19 @@ func (r *FormationRepo) sendUpdatedSince(ch chan<- *ct.ExpandedFormation, stopCh
 	if err != nil {
 		return err
 	}
+	defer rows.Close()
 	for rows.Next() {
 		formation, err := scanFormation(rows)
 		if err != nil {
-			rows.Close()
 			return err
 		}
 		ef, err := r.expandFormation(formation)
 		if err != nil {
-			rows.Close()
 			return err
 		}
 		select {
 		case ch <- ef:
 		case <-stopCh:
-			rows.Close()
 			return nil
 		}
 	}
