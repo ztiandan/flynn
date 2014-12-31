@@ -22,6 +22,67 @@ import (
 	"github.com/flynn/flynn/pkg/sse"
 )
 
+/* SSE Logger */
+type SSELogWriter interface {
+	Stream(string) io.Writer
+}
+
+type sseLogWriter struct {
+	sse.SSEWriter
+}
+
+func (w *sseLogWriter) Stream(s string) io.Writer {
+	return &sseLogStreamWriter{w: w, s: s}
+}
+
+func NewSSELogWriter(w io.Writer) SSELogWriter {
+	return &sseLogWriter{SSEWriter: &sse.Writer{Writer: w}}
+}
+
+type sseLogChunk struct {
+	Stream string `json:"stream"`
+	Data   string `json:"data"`
+}
+
+type sseLogStreamWriter struct {
+	w *sseLogWriter
+	s string
+}
+
+func (w *sseLogStreamWriter) Write(p []byte) (int, error) {
+	data, err := json.Marshal(&sseLogChunk{Stream: w.s, Data: string(p)})
+	if err != nil {
+		return 0, err
+	}
+	if _, err := w.w.Write(data); err != nil {
+		return 0, err
+	}
+	return len(p), err
+}
+
+func (w *sseLogStreamWriter) Flush() {
+	if fw, ok := w.w.SSEWriter.(http.Flusher); ok {
+		fw.Flush()
+	}
+}
+
+type flushWriter struct {
+	w  io.Writer
+	ok bool
+}
+
+func (f flushWriter) Write(p []byte) (int, error) {
+	if f.ok {
+		defer func() {
+			if fw, ok := f.w.(http.Flusher); ok {
+				fw.Flush()
+			}
+		}()
+	}
+	return f.w.Write(p)
+}
+
+/* Job Stuff */
 type JobRepo struct {
 	db *postgres.DB
 }
@@ -336,65 +397,6 @@ func streamJobs(req *http.Request, w http.ResponseWriter, app *ct.App, repo *Job
 			}
 		}
 	}
-}
-
-type SSELogWriter interface {
-	Stream(string) io.Writer
-}
-
-func NewSSELogWriter(w io.Writer) SSELogWriter {
-	return &sseLogWriter{SSEWriter: &sse.Writer{Writer: w}}
-}
-
-type sseLogWriter struct {
-	sse.SSEWriter
-}
-
-func (w *sseLogWriter) Stream(s string) io.Writer {
-	return &sseLogStreamWriter{w: w, s: s}
-}
-
-type sseLogStreamWriter struct {
-	w *sseLogWriter
-	s string
-}
-
-type sseLogChunk struct {
-	Stream string `json:"stream"`
-	Data   string `json:"data"`
-}
-
-func (w *sseLogStreamWriter) Write(p []byte) (int, error) {
-	data, err := json.Marshal(&sseLogChunk{Stream: w.s, Data: string(p)})
-	if err != nil {
-		return 0, err
-	}
-	if _, err := w.w.Write(data); err != nil {
-		return 0, err
-	}
-	return len(p), err
-}
-
-func (w *sseLogStreamWriter) Flush() {
-	if fw, ok := w.w.SSEWriter.(http.Flusher); ok {
-		fw.Flush()
-	}
-}
-
-type flushWriter struct {
-	w  io.Writer
-	ok bool
-}
-
-func (f flushWriter) Write(p []byte) (int, error) {
-	if f.ok {
-		defer func() {
-			if fw, ok := f.w.(http.Flusher); ok {
-				fw.Flush()
-			}
-		}()
-	}
-	return f.w.Write(p)
 }
 
 func formatUUID(s string) string {
