@@ -235,7 +235,7 @@ func (c *Cmd) Start() error {
 
 	if c.attachClient == nil {
 		c.eventChan = make(chan *host.Event)
-		c.eventStream, err = c.host.StreamEvents(job.ID, c.eventChan)
+		c.eventStream, err = c.host.StreamEvents(c.Job.ID, c.eventChan)
 		if err != nil {
 			return err
 		}
@@ -264,7 +264,7 @@ func (c *Cmd) Start() error {
 		}
 	}()
 
-	_, err = c.cluster.AddJobs(map[string][]*host.Job{c.HostID: {job}})
+	_, err = c.cluster.AddJobs(map[string][]*host.Job{c.HostID: {c.Job}})
 	return err
 }
 
