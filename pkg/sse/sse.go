@@ -27,7 +27,7 @@ type Writer struct {
 func (w *Writer) Write(p []byte) (int, error) {
 	w.Lock()
 	defer w.Unlock()
-	for _, line := range bytes.Split([]byte("\n"), p) {
+	for _, line := range bytes.Split(p, []byte("\n")) {
 		data := fmt.Sprintf("data: %s\n", line)
 		if _, err := w.Writer.Write([]byte(data)); err != nil {
 			return 0, err
