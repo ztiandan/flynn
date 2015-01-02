@@ -244,33 +244,34 @@ func (c *Client) RemoveJob(hostID, jobID string) error {
 	return c.c.Delete(fmt.Sprintf("/cluster/hosts/%s/jobs/%s", hostID, jobID))
 }
 
-// StreamHostEvents sends a stream of host events from the host to ch.
-func (c *Client) StreamHostEvents(ch chan<- *host.HostEvent) (Stream, error) {
+// StreamHostEvents sends a stream of host events from the host to the provided channel.
+func (c *Client) StreamHostEvents(output chan<- *host.HostEvent) (stream.Stream, error) {
 	header := http.Header{"Accept": []string{"text/event-stream"}}
 	res, err := c.c.RawReq("GET", "/cluster/events", header, nil, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	stream := HostEventStream{
-		Chan: ch,
-		body: res.Body,
-	}
+	stream := stream.New()
 	go func() {
 		defer func() {
-			close(ch)
-			stream.Close()
+			close(output)
+			res.Body.Close()
 		}()
 
-		r := bufio.NewReader(stream.body)
+		r := bufio.NewReader(res.Body)
 		dec := sse.NewDecoder(r)
 		for {
 			event := &host.HostEvent{}
 			if err := dec.Decode(event); err != nil {
-				stream.err = err
-				break
+				stream.Error = err
+				return
 			}
-			stream.Chan <- event
+			select {
+			case output <- event:
+			case <-stream.StopCh:
+				return
+			}
 		}
 	}()
 	return stream, nil

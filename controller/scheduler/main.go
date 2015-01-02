@@ -83,7 +83,7 @@ type clusterClient interface {
 	ListHosts() ([]host.Host, error)
 	AddJobs(jobs map[string][]*host.Job) (map[string]host.Host, error)
 	DialHost(id string) (cluster.Host, error)
-	StreamHostEvents(ch chan<- *host.HostEvent) stream.Stream
+	StreamHostEvents(ch chan<- *host.HostEvent) (stream.Stream, error)
 }
 
 type controllerClient interface {

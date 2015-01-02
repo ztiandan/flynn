@@ -110,11 +110,11 @@ func (c *FakeCluster) SetHostClient(id string, h *FakeHostClient) {
 	c.hostClients[id] = h
 }
 
-func (c *FakeCluster) StreamHostEvents(ch chan<- *host.HostEvent) stream.Stream {
+func (c *FakeCluster) StreamHostEvents(ch chan<- *host.HostEvent) (stream.Stream, error) {
 	c.listenMtx.Lock()
 	defer c.listenMtx.Unlock()
 	c.listeners = append(c.listeners, ch)
-	return &FakeClusterHostEventStream{ch: ch}
+	return &FakeClusterHostEventStream{ch: ch}, nil
 }
 
 func (c *FakeCluster) SendEvent(hostID, event string) {
