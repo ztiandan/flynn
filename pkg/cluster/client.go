@@ -97,8 +97,8 @@ func (c *Client) start() error {
 }
 
 func (c *Client) followLeader(firstErr chan<- error) {
-	for update := range c.service.Leaders() {
-		if update == nil {
+	for leader := range c.service.Leaders() {
+		if leader == nil {
 			if firstErr != nil {
 				firstErr <- ErrNoServers
 				c.Close()
@@ -107,12 +107,8 @@ func (c *Client) followLeader(firstErr chan<- error) {
 			continue
 		}
 		c.mtx.Lock()
-		if c.c != nil {
-			c.c.Close()
-			c.c = nil
-		}
-		c.leaderID = update.Attrs["id"]
-		c.c.URL = update.Addr
+		c.leaderID = leader.Attrs["id"]
+		c.c.URL = "http://" + leader.Addr
 		// TODO: cancel any current requests
 		if c.err == nil {
 			close(c.leaderChange)
