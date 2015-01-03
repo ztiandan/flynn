@@ -70,7 +70,7 @@ func newClient(services ServiceSetFunc) (*Client, error) {
 	c := &httpclient.Client{
 		ErrPrefix:   "cluster",
 		ErrNotFound: ErrNotFound,
-		HTTP:        nil,
+		HTTP:        http.DefaultClient,
 	}
 	return &Client{service: ss, c: c, leaderChange: make(chan struct{})}, nil
 }
