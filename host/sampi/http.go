@@ -119,7 +119,6 @@ func listHosts(c *Cluster, w http.ResponseWriter, r *http.Request, _ httprouter.
 		rh.Error(err)
 		return
 	}
-	w.WriteHeader(200)
 	rh.JSON(200, ret)
 }
 
