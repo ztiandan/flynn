@@ -100,7 +100,9 @@ func (c *hostClient) StreamEvents(id string, ch chan<- *host.Event) (Stream, err
 		for {
 			event := &host.Event{}
 			if err := dec.Decode(event); err != nil {
-				stream.err = err
+				if err != io.EOF {
+					stream.err = err
+				}
 				break
 			}
 			stream.Chan <- event
