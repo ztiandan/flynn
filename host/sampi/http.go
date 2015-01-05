@@ -54,41 +54,6 @@ func (s *Cluster) AddJobs(req map[string][]*host.Job) (map[string]host.Host, err
 
 // Host Service methods
 
-func (s *Cluster) RegisterHost(h *host.Host, ch chan *host.Job, done chan bool) error {
-	if h.ID == "" {
-		return errors.New("sampi: host id must not be blank")
-	}
-
-	s.state.Begin()
-
-	if s.state.HostExists(h.ID) {
-		s.state.Rollback()
-		return errors.New("sampi: host exists")
-	}
-
-	jobs := make(chan *host.Job)
-	s.state.AddHost(h, jobs)
-	s.state.Commit()
-	go s.state.sendEvent(h.ID, "add")
-
-outer:
-	for {
-		select {
-		case job := <-jobs:
-			ch <- job
-		case <-done:
-			break outer
-		}
-	}
-	close(jobs)
-
-	s.state.Begin()
-	s.state.RemoveHost(h.ID)
-	s.state.Commit()
-	go s.state.sendEvent(h.ID, "remove")
-	return nil
-}
-
 func (s *Cluster) RemoveJobs(hostID string, jobIDs []string) error {
 	s.state.Begin()
 	s.state.RemoveJobs(hostID, jobIDs...)
@@ -136,18 +101,32 @@ func registerHost(c *Cluster, w http.ResponseWriter, r *http.Request, ps httprou
 		rh.Error(err)
 		return
 	}
-
-	ch := make(chan *host.Job)
-	done := make(chan bool)
-	if err = c.RegisterHost(h, ch, done); err != nil {
-		rh.Error(err)
+	if h.ID == "" {
+		rh.Error(errors.New("sampi: host id must not be blank"))
 		return
 	}
 
+	ch := make(chan *host.Job)
+
+	c.state.Begin()
+	if c.state.HostExists(h.ID) {
+		c.state.Rollback()
+		rh.Error(errors.New("sampi: host exists"))
+		return
+	}
+	c.state.AddHost(h, ch)
+	c.state.Commit()
+	go c.state.sendEvent(h.ID, "add")
+
+	// "defer" cleanups in a goroutine that waits until the http stream is closed.
 	go func() {
 		<-w.(http.CloseNotifier).CloseNotify()
-		close(done)
+		c.state.Begin()
+		c.state.RemoveHost(h.ID)
+		c.state.Commit()
+		go c.state.sendEvent(h.ID, "remove")
 	}()
+
 	wr := sse.NewSSEWriter(w)
 	enc := json.NewEncoder(wr)
 	w.Header().Set("Content-Type", "text/event-stream; charset=utf-8")
