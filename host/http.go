@@ -3,9 +3,11 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/flynn/flynn/Godeps/_workspace/src/github.com/julienschmidt/httprouter"
 	"github.com/flynn/flynn/host/types"
@@ -62,9 +64,20 @@ func (h *Host) streamEvents(id string, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "text/event-stream; charset=utf-8")
 	w.WriteHeader(200)
 	w.(http.Flusher).Flush()
-	for data := range ch {
-		enc.Encode(data) // TODO: check failure
-		w.(http.Flusher).Flush()
+	for {
+		select {
+		case data := <-ch:
+			if err := enc.Encode(data); err != nil {
+				return err
+			}
+			w.(http.Flusher).Flush()
+		case <-time.NewTimer(10 * time.Second).C:
+			// if the job still doesn't exist after a reasonable timeout, then
+			// break out of this stream (closing the connection will be handled outside)
+			if id != "all" && h.state.GetJob(id) == nil {
+				return fmt.Errorf("no such job")
+			}
+		}
 	}
 	return nil
 }
