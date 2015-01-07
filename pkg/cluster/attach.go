@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httputil"
+	"net/url"
 	"sync"
 
 	"github.com/flynn/flynn/host/types"
@@ -34,7 +35,11 @@ func (c *hostClient) Attach(req *host.AttachReq, wait bool) (AttachClient, error
 	if err != nil {
 		return nil, err
 	}
-	conn, err := net.Dial("tcp", c.c.URL)
+	uri, err := url.Parse(c.c.URL)
+	if err != nil {
+		return nil, err
+	}
+	conn, err := net.Dial("tcp", uri.Host)
 	if err != nil {
 		return nil, err
 	}

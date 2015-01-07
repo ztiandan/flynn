@@ -174,7 +174,7 @@ func (c *Client) DialHost(id string) (Host, error) {
 	if len(services) == 0 {
 		return nil, ErrNoServers
 	}
-	addr := services[0].Addr
+	addr := "http://" + services[0].Addr
 	return NewHostClient(addr, nil), nil
 }
 
