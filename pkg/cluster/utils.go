@@ -2,7 +2,6 @@ package cluster
 
 import (
 	"errors"
-	"github.com/flynn/flynn/pkg/random"
 	"strings"
 
 	"github.com/flynn/flynn/pkg/random"

@@ -15,7 +15,6 @@ import (
 	"github.com/flynn/flynn/host/types"
 	"github.com/flynn/flynn/pkg/attempt"
 	"github.com/flynn/flynn/pkg/httpclient"
-	"github.com/flynn/flynn/pkg/random"
 	"github.com/flynn/flynn/pkg/sse"
 	"github.com/flynn/flynn/pkg/stream"
 )
