@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"sync"
@@ -33,7 +34,7 @@ func (c *hostClient) Attach(req *host.AttachReq, wait bool) (AttachClient, error
 	if err != nil {
 		return nil, err
 	}
-	conn, err := c.dial("tcp", c.c.URL)
+	conn, err := net.Dial("tcp", c.c.URL)
 	if err != nil {
 		return nil, err
 	}

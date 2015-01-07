@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 
 	"github.com/flynn/flynn/host/types"
@@ -36,16 +35,12 @@ type Host interface {
 }
 
 type hostClient struct {
-	dial httpclient.DialFunc
-	c    *httpclient.Client
+	c *httpclient.Client
 }
 
 // NewHostClient creates a new Host that uses client to communicate with it.
-// addr and dial are used by Attach.
-func NewHostClient(addr string, h *http.Client, d httpclient.DialFunc) Host {
-	if d == nil {
-		d = net.Dial
-	}
+// addr is used by Attach.
+func NewHostClient(addr string, h *http.Client) Host {
 	if h == nil {
 		h = http.DefaultClient
 	}
@@ -54,7 +49,7 @@ func NewHostClient(addr string, h *http.Client, d httpclient.DialFunc) Host {
 		ErrNotFound: ErrNotFound,
 		URL:         addr,
 		HTTP:        h,
-	}, dial: d}
+	}}
 }
 
 func (c *hostClient) ListJobs() (map[string]host.ActiveJob, error) {

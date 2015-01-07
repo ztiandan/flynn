@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"sync"
 	"time"
@@ -33,25 +32,21 @@ var Attempts = attempt.Strategy{
 // NewClient uses discoverd to dial the local cluster leader and returns
 // a client.
 func NewClient() (*Client, error) {
-	return NewClientWithDial(nil, nil)
+	return NewClientWithServices(nil)
 }
 
 // A ServiceSetFunc is a function that takes a service name and returns
 // a discoverd.ServiceSet.
 type ServiceSetFunc func(name string) (discoverd.ServiceSet, error)
 
-// NewClientWithDial uses the provided dial and services to dial the cluster
-// leader and returns a client. If dial is nil, the default network dialer is
-// used. If services is nil, the default discoverd client is used.
-func NewClientWithDial(dial httpclient.DialFunc, services ServiceSetFunc) (*Client, error) {
+// NewClientWithServices uses the provided dial and services to dial the cluster
+// leader and returns a client. If services is nil, the default discoverd
+// client is used.
+func NewClientWithServices(services ServiceSetFunc) (*Client, error) {
 	client, err := newClient(services)
 	if err != nil {
 		return nil, err
 	}
-	if dial == nil {
-		dial = net.Dial
-	}
-	client.dial = dial
 	return client, client.start()
 }
 
@@ -81,10 +76,9 @@ type Client struct {
 	service  discoverd.ServiceSet
 	leaderID string
 
-	dial httpclient.DialFunc
-	c    *httpclient.Client
-	mtx  sync.RWMutex
-	err  error
+	c   *httpclient.Client
+	mtx sync.RWMutex
+	err error
 
 	leaderChange chan struct{}
 }
@@ -173,7 +167,7 @@ func (c *Client) AddJobs(jobs map[string][]*host.Job) (map[string]host.Host, err
 func (c *Client) DialHost(id string) (Host, error) {
 	// don't lookup addr if leader id == id
 	if c.LeaderID() == id {
-		return NewHostClient(c.c.URL, nil, c.dial), nil
+		return NewHostClient(c.c.URL, nil), nil
 	}
 
 	services := c.service.Select(map[string]string{"id": id})
@@ -181,7 +175,7 @@ func (c *Client) DialHost(id string) (Host, error) {
 		return nil, ErrNoServers
 	}
 	addr := services[0].Addr
-	return NewHostClient(addr, nil, c.dial), nil
+	return NewHostClient(addr, nil), nil
 }
 
 // RegisterHost is used by the host service to register itself with the leader
