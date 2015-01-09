@@ -1,14 +1,12 @@
 package cluster
 
 import (
-	"bufio"
 	"fmt"
-	"io"
 	"net/http"
 
 	"github.com/flynn/flynn/host/types"
 	"github.com/flynn/flynn/pkg/httpclient"
-	"github.com/flynn/flynn/pkg/sse"
+	"github.com/flynn/flynn/pkg/stream"
 )
 
 // Host is a client for a host daemon.
@@ -24,7 +22,7 @@ type Host interface {
 
 	// StreamEvents about job state changes to ch. id may be "all" or a single
 	// job ID.
-	StreamEvents(id string, ch chan<- *host.Event) (Stream, error)
+	StreamEvents(id string, ch chan<- *host.Event) (stream.Stream, error)
 
 	// Attach attaches to a job, optionally waiting for it to start before
 	// attaching.
@@ -68,7 +66,7 @@ func (c *hostClient) StopJob(id string) error {
 	return c.c.Delete(fmt.Sprintf("/host/jobs/%s", id))
 }
 
-func (c *hostClient) StreamEvents(id string, ch chan<- *host.Event) (Stream, error) {
+func (c *hostClient) StreamEvents(id string, ch chan<- *host.Event) (stream.Stream, error) {
 	header := http.Header{"Accept": []string{"text/event-stream"}}
 	r := fmt.Sprintf("/host/jobs/%s", id)
 	if id == "all" {
@@ -80,46 +78,9 @@ func (c *hostClient) StreamEvents(id string, ch chan<- *host.Event) (Stream, err
 		return nil, err
 	}
 
-	stream := EventStream{
-		Chan: ch,
-		body: res.Body,
-	}
-	go func() {
-		defer func() {
-			close(ch)
-			stream.Close()
-		}()
-
-		r := bufio.NewReader(stream.body)
-		dec := sse.NewDecoder(r)
-		for {
-			event := &host.Event{}
-			if err := dec.Decode(event); err != nil {
-				if err != io.EOF {
-					stream.err = err
-				}
-				break
-			}
-			stream.Chan <- event
-		}
-	}()
-	return stream, nil
+	return httpclient.Stream(res, ch), nil
 }
 
 func (c *hostClient) Close() error {
 	return c.c.Close()
-}
-
-type EventStream struct {
-	Chan chan<- *host.Event
-	body io.ReadCloser
-	err  error
-}
-
-func (e EventStream) Err() error {
-	return e.err
-}
-
-func (e EventStream) Close() error {
-	return e.body.Close()
 }
